@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from shapely import geometry
 
 from origamiUROP.polygons import BoundaryPolygon
+from typing import Tuple
 
 COLOURS = [
     (1, 0, 0, 1),
@@ -27,9 +28,9 @@ def pentagon(L : int) -> np.ndarray:
     ]) - 0.5) * L
 
 class PointInPolygon2D:
-    def __init__(self, polygon_array, lattice, gridsize=0.1):
+    def __init__(self, polygon_array, gridsize=0.1):
         self.polygon = np.concatenate([polygon_array, np.array([polygon_array[0, :]])], axis=0)
-        self._lattice = lattice
+        self.gridsize = gridsize
         self.obj = BoundaryPolygon(polygon_array)
 
     @property
@@ -49,11 +50,23 @@ class PointInPolygon2D:
             point[1] > box[2] and \
             point[1] < box[3]
         )
+    @property
+    def shape(self):
+        return [self.box[1] - self.box[0], self.box[3] - self.box[2]]
 
     @property
     def lattice(self):
-        new_lattice =  []
-        for i, point in enumerate(self._lattice):
+        print(f'origin: {(self.box[0], self.box[2])}')
+        print(f'shape: {self.shape}')
+        _lattice =  generate_lattice(
+            self.shape,
+            origin = (self.box[0], self.box[2]),
+            lattice_vectors = self.gridsize * np.array([[1., 0.],[0., 1.]])
+        )
+        #print(_lattice)
+        new_lattice = []
+
+        for i, point in enumerate(_lattice):
             if not self.in_box(point):
                 continue
 
@@ -85,7 +98,33 @@ class PointInPolygon2D:
                 )
         plt.show()
 
-def generate_lattice(image_shape, lattice_vectors) :
+def generate_lattice(
+        image_shape : Tuple[float], 
+        origin : Tuple[float] = (0, 0),
+        lattice_vectors : np.ndarray = np.array([[1., 0.], [0., 1.]])
+    ):
+    """
+    Creates a 2D lattice within a rectangle with dimensions:
+
+        xmin: 0,
+        xmax: image_shape[0],
+        ymin: 0,
+        ymax: image_shape[1]
+
+    A square lattice can be created by using perpendicular
+    unit vectors:
+
+    lattice_vectors = np.array([
+        [1., 0.], 
+        [0., 1.]
+    ])
+
+    TODO: change arguments to:
+        dimensions = (x, y)
+        origin = (0, 0)
+        lattice_vectors = np.array([[1., 0.], [0., 1.]])
+
+    """
     center_pix = np.array(image_shape) // 2
     # Get the lower limit on the cell size.
     dx_cell = max(abs(lattice_vectors[0][0]), abs(lattice_vectors[1][0]))
@@ -116,21 +155,12 @@ def generate_lattice(image_shape, lattice_vectors) :
     y_lattice += center_pix[1]
     # Make output compatible with original version.
     out = np.empty((len(x_lattice), 2), dtype=float)
-    out[:, 0] = y_lattice
-    out[:, 1] = x_lattice
+    out[:, 0] = y_lattice - origin[0]
+    out[:, 1] = x_lattice - origin[1]
     return out
 
 def main(**kwargs):
-    lattice = generate_lattice(
-        (4, 4), 
-        np.array([
-            [0.1, 0.],
-            [0., 0.1]
-        ])) - 2.
-    obj = PointInPolygon2D(
-        pentagon(5), 
-        lattice)
-    print(obj.lattice)
+    obj = PointInPolygon2D(pentagon(10), gridsize=0.1)
     obj.plot()
     return 
 
