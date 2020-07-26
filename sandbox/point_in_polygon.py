@@ -29,9 +29,8 @@ def pentagon(L : int) -> np.ndarray:
 class PointInPolygon2D:
     def __init__(self, polygon_array, lattice, gridsize=0.1):
         self.polygon = np.concatenate([polygon_array, np.array([polygon_array[0, :]])], axis=0)
-        self.lattice = lattice
+        self._lattice = lattice
         self.obj = BoundaryPolygon(polygon_array)
-        _ = self.inside
 
     @property
     def box(self):
@@ -52,20 +51,18 @@ class PointInPolygon2D:
         )
 
     @property
-    def inside(self):
-        inside = []
+    def lattice(self):
         new_lattice =  []
-        for i, point in enumerate(self.lattice):
+        for i, point in enumerate(self._lattice):
             if not self.in_box(point):
-                inside.append(False)
                 continue
 
             polygon = geometry.Polygon(self.polygon)
-            inside.append(polygon.contains(geometry.Point(point)))
-            new_lattice.append(point)
-        self.lattice = new_lattice
-        return inside
-        
+            result = polygon.contains(geometry.Point(point))
+            if result:
+                new_lattice.append(point)
+
+        return np.array(new_lattice)
 
     def plot(self):
         fig, ax = plt.subplots()
@@ -83,8 +80,8 @@ class PointInPolygon2D:
                 point[0], 
                 point[1],
                 f'o', 
-                markerfacecolor=COLOURS[int(self.inside[i])],
-                markeredgecolor=COLOURS[int(self.inside[i])],
+                markerfacecolor=COLOURS[1],
+                markeredgecolor=COLOURS[1],
                 )
         plt.show()
 
@@ -133,6 +130,7 @@ def main(**kwargs):
     obj = PointInPolygon2D(
         pentagon(5), 
         lattice)
+    print(obj.lattice)
     obj.plot()
     return 
 
